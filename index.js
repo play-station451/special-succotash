@@ -1,5 +1,5 @@
 require('dotenv').config();
-const express = require('express');
+const express = require('express'); 
 const bcrypt = require('bcryptjs');
 const { createClient } = require('@supabase/supabase-js');
 
