@@ -13,11 +13,9 @@ const supabase = createClient(
 
 const PORT = process.env.PORT || 3000;
 
-// Very small in-memory rate limiter per (username) to slow down brute force.
-// For real production use, put this behind a proper rate limiter / WAF.
-const failedAttempts = new Map(); // username -> { count, lockUntil }
+const failedAttempts = new Map();
 const MAX_ATTEMPTS = 5;
-const LOCK_MS = 5 * 60 * 1000; // 5 minutes
+const LOCK_MS = 5 * 60 * 1000;
 
 function isLocked(username) {
   const entry = failedAttempts.get(username);
@@ -43,8 +41,6 @@ function clearFailures(username) {
   failedAttempts.delete(username);
 }
 
-// POST /api/register
-// Not called by the Rust client, but you need some way to create accounts.
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) {
@@ -84,9 +80,6 @@ app.post('/api/register', async (req, res) => {
   return res.json({ success: true, message: 'account created' });
 });
 
-// POST /api/login
-// Body: { username, password, hwid } -> matches LoginRequest in the Rust client.
-// Response: { success, message } -> matches LoginResponse in the Rust client.
 app.post('/api/login', async (req, res) => {
   const { username, password, hwid } = req.body || {};
 
@@ -124,7 +117,6 @@ app.post('/api/login', async (req, res) => {
     return res.json({ success: false, message: 'invalid username or password' });
   }
 
-  // No hwid bound yet -> bind this device on first successful login.
   if (!user.hwid) {
     const { error: bindErr } = await supabase
       .from('users')
@@ -139,7 +131,6 @@ app.post('/api/login', async (req, res) => {
     return res.json({ success: true, message: 'login successful (device bound)' });
   }
 
-  // hwid already bound -> must match this device.
   if (user.hwid !== hwid) {
     recordFailure(username);
     return res.json({
@@ -154,6 +145,10 @@ app.post('/api/login', async (req, res) => {
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-app.listen(PORT, () => {
-  console.log(`Auth server listening on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Auth server listening on port ${PORT}`);
+  });
+}
+
+module.exports = app;
